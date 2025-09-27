@@ -118,7 +118,7 @@ export const CR_VentasProspecto_CTS = async (req, res) => {
       contacto,
       actividad,
       sede,
-      asesor_nombre: usuario.name,
+      asesor_nombre: usuario.nombre,
       n_contacto_1: 1,
       observacion
     });

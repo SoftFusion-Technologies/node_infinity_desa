@@ -278,6 +278,7 @@ app.get('/notifications/clases-prueba/:userId', async (req, res) => {
         vp.id AS prospecto_id,
         vp.nombre,
         vp.contacto,
+        vp.observacion,
         vp.clase_prueba_1_fecha,
         vp.clase_prueba_2_fecha,
         vp.clase_prueba_3_fecha,
@@ -285,6 +286,7 @@ app.get('/notifications/clases-prueba/:userId', async (req, res) => {
         vp.usuario_id,
         u.nombre AS asesor_nombre,   -- ajustado: en tu tabla usuarios el campo es "nombre"
         vp.sede,
+        
 
         /* Tipo de la clase/visita que cae HOY */
         CASE
@@ -317,6 +319,27 @@ app.get('/notifications/clases-prueba/:userId', async (req, res) => {
       .json({ error: 'Error obteniendo notificaciones de clase de prueba' });
   }
 });
+
+
+app.patch(
+  '/notifications/clases-prueba/:prospectoId/enviado',
+  async (req, res) => {
+    const prospectoId = Number(req.params.prospectoId);
+    try {
+      const [r] = await pool.query(
+        'UPDATE ventas_prospectos SET n_contacto_2 = 1, updated_at = NOW() WHERE id = ?',
+        [prospectoId]
+      );
+      if (r.affectedRows === 0) {
+        return res.status(404).json({ error: 'Prospecto no encontrado' });
+      }
+      res.json({ ok: true, n_contacto_2: 1 });
+    } catch (e) {
+      console.error('PATCH enviado error:', e);
+      res.status(500).json({ error: 'No se pudo marcar como enviado' });
+    }
+  }
+);
 
 
 async function deleteOldNotifications() {

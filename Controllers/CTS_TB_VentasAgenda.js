@@ -14,9 +14,8 @@ import { VentasAgendaModel } from '../Models/MD_TB_VentasAgenda.js';
 import { VentasProspectosModel } from '../Models/MD_TB_ventas_prospectos.js';
 import NotificationModel from '../Models/MD_TB_Notifications.js'; // 🔔 notificaciones
 import { Op, fn, col, where as sqlWhere } from 'sequelize';
-import UsersModel from '../Models/MD_TB_Users.js';
+import { UserModel } from '../Models/MD_TB_Users.js';
 
-import { norm, mapUserSedeToVp } from '../utils/sede.js';
 
 function ymd(d) {
   return d.toISOString().slice(0, 10);
@@ -105,16 +104,26 @@ export const GEN_AgendaSeguimientoVentas = async () => {
 // Tip: agregar ?with_prospect=1 para incluir datos del prospecto
 export const GET_AgendaHoy = async (req, res) => {
   try {
-    const { usuario_id, level, with_prospect } = req.query;
+    const { usuario_id, with_prospect } = req.query;
 
     const byToday = sqlWhere(fn('DATE', col('followup_date')), fn('CURDATE'));
     const where = { [Op.and]: [byToday] };
 
     const include = [];
     const wantPros = with_prospect === '1';
-    const lvl = norm(level);
 
-    if (lvl === 'admin') {
+    // Si no es admin, necesitamos saber el local_id del usuario
+    let user = null;
+    if (usuario_id) {
+      user = await UserModel.findByPk(usuario_id, {
+        attributes: ['id', 'rol', 'local_id']
+      });
+    }
+
+    const isAdmin = user?.rol === 'admin';
+
+    if (isAdmin) {
+      // Admin: puede ver todo
       if (wantPros) {
         include.push({
           model: VentasProspectosModel,
@@ -123,49 +132,34 @@ export const GET_AgendaHoy = async (req, res) => {
             'nombre',
             'contacto',
             'actividad',
-            'sede',
+            'local_id',
             'asesor_nombre'
           ]
         });
       }
     } else {
+      // No admin (socio / vendedor): requiere usuario_id y filtra por local_id
       if (!usuario_id) {
         return res.status(400).json({ mensajeError: 'Debe enviar usuario_id' });
       }
-      const user = await UsersModel.findByPk(usuario_id, {
-        attributes: ['id', 'sede', 'level']
-      });
       if (!user) {
         return res.status(404).json({ mensajeError: 'Usuario no encontrado' });
       }
-
-      const mappedSede = mapUserSedeToVp(user.sede); // null => todas
-      if (mappedSede) {
-        include.push({
-          model: VentasProspectosModel,
-          as: 'prospecto',
-          attributes: wantPros
-            ? ['nombre', 'contacto', 'actividad', 'sede', 'asesor_nombre']
-            : [],
-          where: { sede: mappedSede },
-          required: true
-        });
-      } else {
-        // multisede -> todas
-        if (wantPros) {
-          include.push({
-            model: VentasProspectosModel,
-            as: 'prospecto',
-            attributes: [
-              'nombre',
-              'contacto',
-              'actividad',
-              'sede',
-              'asesor_nombre'
-            ]
-          });
-        }
+      if (!user.local_id) {
+        return res
+          .status(400)
+          .json({ mensajeError: 'El usuario no tiene local_id asignado' });
       }
+
+      include.push({
+        model: VentasProspectosModel,
+        as: 'prospecto',
+        attributes: wantPros
+          ? ['nombre', 'contacto', 'actividad', 'local_id', 'asesor_nombre']
+          : [],
+        where: { local_id: user.local_id },
+        required: true
+      });
     }
 
     const items = await VentasAgendaModel.findAll({
@@ -186,40 +180,44 @@ export const GET_AgendaHoy = async (req, res) => {
 // Contador para badge
 export const GET_AgendaHoyCount = async (req, res) => {
   try {
-    const { usuario_id, level } = req.query;
+    const { usuario_id } = req.query;
 
     const byToday = sqlWhere(fn('DATE', col('followup_date')), fn('CURDATE'));
     const where = { done: false, [Op.and]: [byToday] };
 
-    const lvl = norm(level);
-    const opts = { where }; // empezamos sin include
+    let user = null;
+    if (usuario_id) {
+      user = await UserModel.findByPk(usuario_id, {
+        attributes: ['id', 'rol', 'local_id']
+      });
+    }
 
-    if (lvl === 'admin') {
-      // todas las sedes
-    } else {
+    const isAdmin = user?.rol === 'admin';
+    const opts = { where };
+
+    if (!isAdmin) {
       if (!usuario_id) {
         return res.status(400).json({ mensajeError: 'Debe enviar usuario_id' });
       }
-      const user = await UsersModel.findByPk(usuario_id, {
-        attributes: ['id', 'sede', 'level']
-      });
       if (!user) {
         return res.status(404).json({ mensajeError: 'Usuario no encontrado' });
       }
-
-      const mappedSede = mapUserSedeToVp(user.sede); // null => todas
-      if (mappedSede) {
-        opts.include = [
-          {
-            model: VentasProspectosModel,
-            as: 'prospecto',
-            attributes: [],
-            where: { sede: mappedSede },
-            required: true
-          }
-        ];
-        opts.distinct = true; // por el join
+      if (!user.local_id) {
+        return res
+          .status(400)
+          .json({ mensajeError: 'El usuario no tiene local_id asignado' });
       }
+
+      opts.include = [
+        {
+          model: VentasProspectosModel,
+          as: 'prospecto',
+          attributes: [],
+          where: { local_id: user.local_id },
+          required: true
+        }
+      ];
+      opts.distinct = true; // por el join
     }
 
     const count = await VentasAgendaModel.count(opts);
