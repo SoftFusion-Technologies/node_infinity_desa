@@ -17,7 +17,7 @@ import path from 'node:path';
 
 const BASE_UPLOAD_DIR = path.join(process.cwd(), 'uploads');
 
-// import './Models/relaciones.js';
+ import './Models/relaciones.js';
 // Importar relaciones
 // import './Models/Proveedores/relacionesProveedor.js';
 

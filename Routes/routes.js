@@ -27,9 +27,44 @@ import {
 // Rutas para operaciones CRUD en la tabla 'usuarios'
 // ----------------------------------------------------------------
 
-router.post('/usuarios', CR_Usuario_CTS);
+router.post('/usuarios', authenticateToken, CR_Usuario_CTS);
 router.put('/usuarios/:id', authenticateToken, UR_Usuario_CTS);
 router.delete('/usuarios/:id', authenticateToken, ER_Usuario_CTS);
 router.get('/usuarios', authenticateToken, OBRS_Usuarios_CTS);
+
+// Importar controladores de Sedes
+import {
+  OBRS_Locales_CTS,
+  OBR_Local_CTS,
+  CR_Local_CTS,
+  ER_Local_CTS,
+  UR_Local_CTS
+} from '../Controllers/CTS_TB_Locales.js';
+// Importar controladores de Sedes
+
+// ----------------------------------------------------------------
+// Rutas para operaciones CRUD en la tabla 'locales'
+// ----------------------------------------------------------------
+
+// Obtener todos los locales
+router.get('/locales', OBRS_Locales_CTS);
+
+// Obtener un solo local por ID
+router.get('/locales/:id', OBR_Local_CTS);
+
+// Crear un nuevo local
+router.post('/locales', CR_Local_CTS);
+
+// Eliminar un local por ID
+router.delete('/locales/:id', ER_Local_CTS);
+
+// Actualizar un local por ID
+router.put('/locales/:id', UR_Local_CTS);
+
+
+import { OBRS_Logs_CTS, OBR_Log_CTS } from '../Controllers/CTS_TB_Logs.js';
+
+router.get('/logs', authenticateToken, OBRS_Logs_CTS);
+router.get('/logs/:id', authenticateToken, OBR_Log_CTS);
 
 export default router;
