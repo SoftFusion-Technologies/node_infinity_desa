@@ -27,6 +27,22 @@ import MD_TB_TestClass from '../Models/MD_TB_TestClass.js';
 const TestClassModel = MD_TB_TestClass.TestClassModel;
 import NotificationModel from '../Models/MD_TB_Notifications.js'; // Asegúrate de importar tu modelo de notificación
 
+import { VentasProspectosModel } from '../Models/MD_TB_ventas_prospectos.js';
+import UserModel from '../Models/MD_TB_Users.js';
+import dayjs from 'dayjs';
+
+import { Op } from 'sequelize';
+
+// Helper > mapear vendedor → sede
+async function sedeDeUsuario(usuario_id) {
+  try {
+    const u = await UserModel.findByPk(usuario_id);
+    return (u?.sede || '').toLowerCase().trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 // Mostrar todos los registros de TestClassModel
 export const OBRS_TestClass_CTS = async (req, res) => {
   try {
@@ -116,10 +132,6 @@ export const UR_TestClass_CTS = async (req, res) => {
   }
 };
 
-import { VentasProspectosModel } from '../Models/MD_TB_ventas_prospectos.js';
-import UserModel from '../Models/MD_TB_Users.js';
-import dayjs from 'dayjs';
-
 export const MOVER_A_VENTAS_CTS = async (req, res) => {
   try {
     const { idTestClass, usuario_id } = req.body;
@@ -191,5 +203,38 @@ export const MOVER_A_VENTAS_CTS = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ mensajeError: error.message });
+  }
+};
+
+/**
+ * GET /testclass/count-pendientes?level=admin|vendedor&usuario_id=123
+ * - admin: cuenta todas las sedes
+ */
+export const COUNT_PENDIENTES_TestClass_CTS = async (req, res) => {
+  try {
+    const level = String(req.query.level || 'vendedor').toLowerCase();
+    const usuario_id = Number(req.query.usuario_id || 0);
+
+    // Pendientes: state en ["nuevo","0",0]
+    const where = {
+      state: { [Op.or]: ['nuevo', '0', 0] }
+    };
+
+    // Si querés restringir por sede del vendedor
+    if (level !== 'admin' && usuario_id > 0) {
+      const sede = await sedeDeUsuario(usuario_id);
+      if (sede) {
+        // Normalizamos por si en DB está capitalizado
+        where.sede = { [Op.like]: sede.replace('%', '\\%') };
+      }
+      // Alternativa: si “user” (string) guarda el nombre del owner:
+      // where.user = String(usuario_id);
+    }
+
+    const count = await TestClassModel.count({ where });
+    res.json({ count });
+  } catch (error) {
+    console.error('COUNT_PENDIENTES_TestClass_CTS error:', error);
+    res.status(500).json({ count: 0, mensajeError: error.message });
   }
 };

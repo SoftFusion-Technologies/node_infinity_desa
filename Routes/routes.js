@@ -62,13 +62,13 @@ router.delete('/locales/:id', ER_Local_CTS);
 // Actualizar un local por ID
 router.put('/locales/:id', UR_Local_CTS);
 
-
 import { OBRS_Logs_CTS, OBR_Log_CTS } from '../Controllers/CTS_TB_Logs.js';
 
 router.get('/logs', authenticateToken, OBRS_Logs_CTS);
 router.get('/logs/:id', authenticateToken, OBR_Log_CTS);
 
 import {
+  COUNT_PENDIENTES_TestClass_CTS,
   OBR_TestClass_CTS,
   OBRS_TestClass_CTS,
   CR_TestClass_CTS,
@@ -78,11 +78,13 @@ import {
   // Importa los controladores necesarios para la tabla password_reset - tb_13
 } from '../Controllers/CTS_TB_TestClass.js';
 
-
 // ----------------------------------------------------------------
 // Ruta para obtener todos los registros de TestClass_CTS tb_13
 // ----------------------------------------------------------------
 // Define las rutas para cada método del controlador de TestClass_CTS
+
+// ✅ NUEVA: conteo de pendientes para el badge
+router.get('/testclass/count-pendientes', COUNT_PENDIENTES_TestClass_CTS);
 
 router.get('/testclass', OBRS_TestClass_CTS);
 
@@ -98,5 +100,4 @@ router.delete('/testclass/:id', ER_TestClass_CTS);
 router.put('/testclass/:id', UR_TestClass_CTS);
 
 router.post('/testclass/mover-a-ventas', MOVER_A_VENTAS_CTS);
-
 export default router;
