@@ -24,6 +24,51 @@ const LocalesModel = MD_TB_Locales.LocalesModel;
 import { registrarLog } from '../Helpers/registrarLog.js';
 import { Op } from 'sequelize';
 
+/**
+ * GET /locales/activas
+ *    -> por defecto: shape compacto [{ key, label, id, codigo, nombre }]
+ * GET /locales/activas?full=1
+ *    -> retorna los registros completos de la tabla (solo activas)
+ */
+
+export const OBRS_Locales_Activas_Selector = async (req, res) => {
+  try {
+    const full = String(req.query.full || '0').toLowerCase();
+
+    // solo "estado = 'activo'"
+    const where = { estado: 'activo' };
+
+    if (full === '1' || full === 'true') {
+      const rows = await LocalesModel.findAll({
+        where,
+        order: [['id', 'ASC']]
+      });
+      return res.json(rows);
+    }
+
+    // Shape compacto para botones/filtros
+    const rows = await LocalesModel.findAll({
+      where,
+      attributes: ['id', 'nombre', 'codigo'],
+      order: [['id', 'ASC']]
+    });
+
+    const data = rows.map((r) => ({
+      id: r.id,
+      key: (r.codigo || r.nombre || '').toLowerCase(),
+      label: r.nombre,
+      codigo: r.codigo,
+      nombre: r.nombre
+    }));
+
+    // Cache suave (opcional)
+    res.set('Cache-Control', 'public, max-age=30'); // 30s
+    return res.json(data);
+  } catch (err) {
+    console.error('OBRS_Locales_Activas_Selector error:', err);
+    return res.status(500).json({ mensajeError: err.message });
+  }
+};
 // Obtener todos los locales
 export const OBRS_Locales_CTS = async (req, res) => {
   try {

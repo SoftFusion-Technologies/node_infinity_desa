@@ -169,7 +169,7 @@ export const MOVER_A_VENTAS_CTS = async (req, res) => {
       actividad: 'No especifica',
       sede: normalizarSede(testClass.sede),
       fecha: now,
-      asesor_nombre: usuario.name,
+      asesor_nombre: usuario.nombre,
       n_contacto_1: 1,
       n_contacto_2: 0,
       n_contacto_3: 0,

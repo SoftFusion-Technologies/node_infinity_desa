@@ -27,14 +27,16 @@ import {
 // Rutas para operaciones CRUD en la tabla 'usuarios'
 // ----------------------------------------------------------------
 
-router.get('/usuarios', authenticateToken, OBRS_Usuarios_CTS);
 router.get('/users', OBRS_Usuarios_CTS);
+router.get('/usuarios', authenticateToken, OBRS_Usuarios_CTS);
+router.get('/users/:id', OBR_Usuario_CTS);
 router.post('/usuarios', authenticateToken, CR_Usuario_CTS);
 router.put('/usuarios/:id', authenticateToken, UR_Usuario_CTS);
 router.delete('/usuarios/:id', authenticateToken, ER_Usuario_CTS);
 
 // Importar controladores de Sedes
 import {
+  OBRS_Locales_Activas_Selector,
   OBRS_Locales_CTS,
   OBR_Local_CTS,
   CR_Local_CTS,
@@ -46,6 +48,8 @@ import {
 // ----------------------------------------------------------------
 // Rutas para operaciones CRUD en la tabla 'locales'
 // ----------------------------------------------------------------
+
+router.get('/locales/activas', OBRS_Locales_Activas_Selector);
 
 // Obtener todos los locales
 router.get('/locales', OBRS_Locales_CTS);
@@ -101,7 +105,6 @@ router.put('/testclass/:id', UR_TestClass_CTS);
 
 router.post('/testclass/mover-a-ventas', MOVER_A_VENTAS_CTS);
 
-
 import {
   OBR_VentasProspecto_CTS,
   OBRS_VentasProspectos_CTS,
@@ -110,7 +113,6 @@ import {
   UR_VentasProspecto_CTS,
   OBRS_ColaboradoresConVentasProspectos
 } from '../Controllers/CTS_TB_VentasProspectos.js';
-
 
 // Obtener todos los prospectos (con filtros opcionales)
 router.get('/ventas_prospectos', OBRS_VentasProspectos_CTS);
