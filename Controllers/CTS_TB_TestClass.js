@@ -28,7 +28,7 @@ const TestClassModel = MD_TB_TestClass.TestClassModel;
 import NotificationModel from '../Models/MD_TB_Notifications.js'; // Asegúrate de importar tu modelo de notificación
 
 import { VentasProspectosModel } from '../Models/MD_TB_ventas_prospectos.js';
-import UserModel from '../Models/MD_TB_Users.js';
+import { UserModel } from '../Models/MD_TB_Users.js';
 import dayjs from 'dayjs';
 
 import { Op } from 'sequelize';

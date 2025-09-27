@@ -344,6 +344,400 @@ cron.schedule('10 0 * * *', () => {
   deleteOldNotifications();
 });
 
+
+app.get('/stats-ventas', async (req, res) => {
+  try {
+    const { sede, mes, anio } = req.query;
+    let whereClauses = [];
+    let params = [];
+
+    // Normaliza la sede: "barrio sur" => "barriosur", etc.
+    // Normaliza la sede y la agrega al filtro
+    if (sede) {
+      whereClauses.push('LOWER(REPLACE(sede, " ", "")) = ?');
+      params.push(sede.toLowerCase().replace(/\s/g, ''));
+    }
+    // Filtro por mes y año (rango de fechas)
+    if (mes && anio) {
+      const startDate = new Date(anio, mes - 1, 1);
+      const endDate = new Date(anio, mes, 1);
+      whereClauses.push('fecha >= ? AND fecha < ?');
+      params.push(startDate, endDate);
+    }
+
+    const whereSQL = whereClauses.length
+      ? 'WHERE ' + whereClauses.join(' AND ')
+      : '';
+
+    // 1. Total de ventas
+    const [[{ total_ventas }]] = await pool.query(
+      `SELECT COUNT(*) AS total_ventas FROM ventas_prospectos ${whereSQL}`,
+      params
+    );
+
+    // 2. Prospectos
+    const [prospectos] = await pool.query(
+      `SELECT tipo_prospecto AS tipo, COUNT(*) AS cantidad
+   FROM ventas_prospectos ${whereSQL}
+   GROUP BY tipo_prospecto`,
+      params
+    );
+
+    // 3. Canales
+    const [canales] = await pool.query(
+      `SELECT canal_contacto AS canal, COUNT(*) AS cantidad
+       FROM ventas_prospectos ${whereSQL}
+       GROUP BY canal_contacto`,
+      params
+    );
+
+    // 4. Actividades
+    const [actividades] = await pool.query(
+      `SELECT actividad, COUNT(*) AS cantidad
+       FROM ventas_prospectos ${whereSQL}
+       GROUP BY actividad`,
+      params
+    );
+
+    // 5. Contactos (SUM)
+    const [[contactos]] = await pool.query(
+      `SELECT
+        SUM(n_contacto_1) AS total_contacto_1,
+        SUM(n_contacto_2) AS total_contacto_2,
+        SUM(n_contacto_3) AS total_contacto_3
+       FROM ventas_prospectos ${whereSQL}`,
+      params
+    );
+
+    // 6. Total clases de prueba (sumando todas)
+    const [[{ total_clases_prueba }]] = await pool.query(
+      `SELECT
+        SUM(CASE WHEN clase_prueba_1_fecha IS NOT NULL THEN 1 ELSE 0 END) +
+        SUM(CASE WHEN clase_prueba_2_fecha IS NOT NULL THEN 1 ELSE 0 END) +
+        SUM(CASE WHEN clase_prueba_3_fecha IS NOT NULL THEN 1 ELSE 0 END)
+        AS total_clases_prueba
+       FROM ventas_prospectos ${whereSQL}`,
+      params
+    );
+
+    const whereConvertidos = [...whereClauses];
+    const paramsConvertidos = [...params];
+
+    whereConvertidos.push('(convertido = 1 OR convertido = true)');
+
+    // 7. Convertidos
+    const convertidosSQL =
+      whereConvertidos.length > 0
+        ? 'WHERE ' + whereConvertidos.join(' AND ')
+        : '';
+
+    const [[{ total_convertidos }]] = await pool.query(
+      `SELECT COUNT(*) AS total_convertidos FROM ventas_prospectos ${convertidosSQL}`,
+      paramsConvertidos
+    );
+
+    const whereCampanias = [...whereClauses];
+    const paramsCampanias = [...params];
+
+    whereCampanias.push("canal_contacto = 'Campaña'");
+
+    // 8. Campañas desglosadas por origen (filtro sede)
+    const campaniasSQL =
+      whereCampanias.length > 0 ? 'WHERE ' + whereCampanias.join(' AND ') : '';
+
+    const [campaniasPorOrigen] = await pool.query(
+      `SELECT campania_origen AS origen, COUNT(*) AS cantidad
+   FROM ventas_prospectos
+   ${campaniasSQL}
+   GROUP BY campania_origen`,
+      paramsCampanias
+    );
+
+    // 9. Conversiones por campaña (origen) (filtro sede)
+
+    const whereCampaniasConvertidas = [...whereClauses];
+    const paramsCampaniasConvertidas = [...params];
+
+    whereCampaniasConvertidas.push("canal_contacto = 'Campaña'");
+    whereCampaniasConvertidas.push('(convertido = 1 OR convertido = true)');
+
+    const campaniasConvertidasSQL =
+      whereCampaniasConvertidas.length > 0
+        ? 'WHERE ' + whereCampaniasConvertidas.join(' AND ')
+        : '';
+
+    const [campaniasConvertidasPorOrigen] = await pool.query(
+      `SELECT
+     campania_origen AS origen,
+     COUNT(*) AS cantidad_convertidos
+   FROM ventas_prospectos
+   ${campaniasConvertidasSQL}
+   GROUP BY campania_origen`,
+      paramsCampaniasConvertidas
+    );
+
+    /* ---------------------------------------------------------
+       🔹 NUEVO BLOQUE: ESTADÍSTICAS DE COMISIONES
+       --------------------------------------------------------- */
+
+    // Criterio de comisión
+    const whereComision = [...whereClauses];
+    const paramsComision = [...params];
+    whereComision.push('(comision = 1 OR comision = true)');
+    const comisionSQL = whereComision.length
+      ? 'WHERE ' + whereComision.join(' AND ')
+      : '';
+
+    // A) Total comisiones
+    const [[{ total_comisiones }]] = await pool.query(
+      `SELECT COUNT(*) AS total_comisiones
+       FROM ventas_prospectos
+       ${comisionSQL}`,
+      paramsComision
+    );
+
+    // B) Comisiones por asesor
+    const [comisionesPorAsesor] = await pool.query(
+      `SELECT asesor_nombre, COUNT(*) AS cantidad
+       FROM ventas_prospectos
+       ${comisionSQL}
+       GROUP BY asesor_nombre
+       ORDER BY cantidad DESC`,
+      paramsComision
+    );
+
+    // C) Comisiones por canal
+    const [comisionesPorCanal] = await pool.query(
+      `SELECT canal_contacto AS canal, COUNT(*) AS cantidad
+       FROM ventas_prospectos
+       ${comisionSQL}
+       GROUP BY canal_contacto
+       ORDER BY cantidad DESC`,
+      paramsComision
+    );
+
+    // D) Comisiones por actividad
+    const [comisionesPorActividad] = await pool.query(
+      `SELECT actividad, COUNT(*) AS cantidad
+       FROM ventas_prospectos
+       ${comisionSQL}
+       GROUP BY actividad
+       ORDER BY cantidad DESC`,
+      paramsComision
+    );
+
+    // E) Comisiones por origen (solo canal campaña)
+    const whereComisionCampania = [...whereClauses];
+    const paramsComisionCampania = [...params];
+    whereComisionCampania.push('(comision = 1 OR comision = true)');
+    whereComisionCampania.push("canal_contacto = 'Campaña'");
+    const comisionCampaniaSQL = whereComisionCampania.length
+      ? 'WHERE ' + whereComisionCampania.join(' AND ')
+      : '';
+    const [comisionesPorOrigenCampania] = await pool.query(
+      `SELECT campania_origen AS origen, COUNT(*) AS cantidad
+       FROM ventas_prospectos
+       ${comisionCampaniaSQL}
+       GROUP BY campania_origen
+       ORDER BY cantidad DESC`,
+      paramsComisionCampania
+    );
+
+    // F) Serie temporal (por día) de comisiones
+    const [comisionesPorDia] = await pool.query(
+      `SELECT DATE(fecha) AS dia, COUNT(*) AS cantidad
+       FROM ventas_prospectos
+       ${comisionSQL}
+       GROUP BY DATE(fecha)
+       ORDER BY dia ASC`,
+      paramsComision
+    );
+
+    // G) Tasa de comisión sobre convertidos (JS para evitar problemas de división)
+    const tasa_comision_sobre_convertidos =
+      total_convertidos > 0
+        ? Number((total_comisiones / total_convertidos).toFixed(4))
+        : 0;
+
+    res.json({
+      total_ventas,
+      prospectos,
+      canales,
+      actividades,
+      contactos,
+      total_clases_prueba,
+      total_convertidos,
+      campaniasPorOrigen,
+      campaniasConvertidasPorOrigen, // 🔹 NUEVO: bloque comisiones
+      total_comisiones,
+      tasa_comision_sobre_convertidos,
+      comisionesPorAsesor,
+      comisionesPorCanal,
+      comisionesPorActividad,
+      comisionesPorOrigenCampania,
+      comisionesPorDia
+    });
+  } catch (error) {
+    console.error('Error obteniendo estadísticas:', error);
+    res.status(500).json({ error: 'Error obteniendo estadísticas' });
+  }
+});
+
+export async function generarAgendasAutomaticas() {
+  // Día de hoy
+  const today = new Date().toISOString().slice(0, 10);
+
+  // 1. Seguimiento: ventas creadas hace 7 días
+  const [prospectos] = await pool.query(`
+    SELECT * FROM ventas_prospectos
+    WHERE DATE(created_at) = DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+  `);
+
+  for (const p of prospectos) {
+    const [yaTiene] = await pool.query(
+      "SELECT 1 FROM agendas_ventas WHERE prospecto_id=? AND tipo='seguimiento'",
+      [p.id]
+    );
+    if (!yaTiene.length) {
+      await pool.query(
+        `INSERT INTO agendas_ventas (prospecto_id, usuario_id, fecha_agenda, tipo, descripcion)
+         VALUES (?, ?, ?, 'seguimiento', ?)`,
+        [p.id, p.usuario_id, today, 'Recordatorio: 2do contacto automático']
+      );
+    }
+  }
+
+  // 2. Clase de prueba (solo si tiene fecha)
+  const [conClasePrueba] = await pool.query(`
+    SELECT * FROM ventas_prospectos 
+    WHERE clase_prueba_1_fecha IS NOT NULL
+  `);
+
+  for (const p of conClasePrueba) {
+    const fechaClase =
+      p.clase_prueba_1_fecha?.toISOString?.().slice(0, 10) ||
+      (typeof p.clase_prueba_1_fecha === 'string'
+        ? p.clase_prueba_1_fecha.slice(0, 10)
+        : null);
+    if (!fechaClase) continue;
+    const [yaTiene] = await pool.query(
+      "SELECT 1 FROM agendas_ventas WHERE prospecto_id=? AND tipo='clase_prueba' AND fecha_agenda=?",
+      [p.id, fechaClase]
+    );
+    if (!yaTiene.length) {
+      await pool.query(
+        `INSERT INTO agendas_ventas (prospecto_id, usuario_id, fecha_agenda, tipo, descripcion)
+         VALUES (?, ?, ?, 'clase_prueba', ?)`,
+        [
+          p.id,
+          p.usuario_id,
+          fechaClase,
+          'Recordatorio: día de la clase de prueba'
+        ]
+      );
+    }
+  }
+}
+
+cron.schedule('10 0 * * *', async () => {
+  console.log('[CRON] Generando agendas automáticas...');
+  try {
+    await generarAgendasAutomaticas();
+    console.log('[CRON] Agendas generadas OK');
+  } catch (err) {
+    console.error('[CRON] Error:', err);
+  }
+});
+
+// Endpoint para traer agendas con filtro por usuario_id (y fácilmente extensible)
+app.get('/agendas-ventas', async (req, res) => {
+  try {
+    const { usuario_id, desde, hasta, solo_pendientes } = req.query;
+    let sql = `
+      SELECT 
+        a.*, 
+        v.nombre AS prospecto_nombre, 
+        v.sede,
+        v.asesor_nombre
+      FROM agendas_ventas a
+      LEFT JOIN ventas_prospectos v ON a.prospecto_id = v.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (usuario_id) {
+      sql += ' AND a.usuario_id = ?';
+      params.push(usuario_id);
+    }
+    if (desde) {
+      sql += ' AND a.fecha_agenda >= ?';
+      params.push(desde);
+    }
+    if (hasta) {
+      sql += ' AND a.fecha_agenda <= ?';
+      params.push(hasta);
+    }
+    if (solo_pendientes === '1') {
+      sql += ' AND a.resuelta = 0';
+    }
+
+    sql += ' ORDER BY a.fecha_agenda DESC, a.id DESC';
+
+    const [agendas] = await pool.query(sql, params);
+    res.json(agendas);
+  } catch (error) {
+    console.error('Error al traer agendas:', error);
+    res.status(500).json({ error: 'Error al traer agendas de ventas' });
+  }
+});
+
+app.put('/agendas-ventas/:id', async (req, res) => {
+  const { id } = req.params;
+  const { nota_envio } = req.body;
+
+  if (!nota_envio) {
+    return res.status(400).json({ error: 'Falta la nota de envío' });
+  }
+
+  try {
+    const sql = `
+      UPDATE agendas_ventas
+      SET enviada = 1,
+          fecha_envio = NOW(),
+          nota_envio = ?
+      WHERE id = ?
+    `;
+    const [result] = await pool.query(sql, [nota_envio, id]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Agenda no encontrada' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error al actualizar agenda:', error);
+    res.status(500).json({ error: 'Error al actualizar la agenda de ventas' });
+  }
+});
+
+app.delete('/agendas-ventas/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [result] = await pool.query(
+      'DELETE FROM agendas_ventas WHERE id = ?',
+      [id]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Agenda no encontrada' });
+    }
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error al eliminar agenda:', error);
+    res.status(500).json({ error: 'Error al eliminar agenda de ventas' });
+  }
+});
+
+
 if (!PORT) {
   console.error('El puerto no está definido en el archivo de configuración.');
   process.exit(1);

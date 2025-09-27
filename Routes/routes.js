@@ -100,4 +100,37 @@ router.delete('/testclass/:id', ER_TestClass_CTS);
 router.put('/testclass/:id', UR_TestClass_CTS);
 
 router.post('/testclass/mover-a-ventas', MOVER_A_VENTAS_CTS);
+
+
+import {
+  OBR_VentasProspecto_CTS,
+  OBRS_VentasProspectos_CTS,
+  CR_VentasProspecto_CTS,
+  ER_VentasProspecto_CTS,
+  UR_VentasProspecto_CTS,
+  OBRS_ColaboradoresConVentasProspectos
+} from '../Controllers/CTS_TB_VentasProspectos.js';
+
+
+// Obtener todos los prospectos (con filtros opcionales)
+router.get('/ventas_prospectos', OBRS_VentasProspectos_CTS);
+
+// Obtener un prospecto por ID
+router.get('/ventas_prospectos/:id', OBR_VentasProspecto_CTS);
+
+// Crear un prospecto
+router.post('/ventas_prospectos', CR_VentasProspecto_CTS);
+
+// Actualizar un prospecto
+router.put('/ventas_prospectos/:id', UR_VentasProspecto_CTS);
+
+// Eliminar un prospecto
+router.delete('/ventas_prospectos/:id', ER_VentasProspecto_CTS);
+
+// Obtener lista de usuarios que cargaron prospectos
+router.get(
+  '/ventas_prospectos_colaboradores',
+  OBRS_ColaboradoresConVentasProspectos
+);
+
 export default router;
