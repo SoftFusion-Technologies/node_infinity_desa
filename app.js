@@ -14,10 +14,11 @@ import { PORT } from './DataBase/config.js';
 import mysql from 'mysql2/promise'; // Usar mysql2 para las promesas
 import cron from 'node-cron';
 import path from 'node:path';
+import NotificationModel from './Models/MD_TB_Notifications.js';
 
 const BASE_UPLOAD_DIR = path.join(process.cwd(), 'uploads');
 
- import './Models/relaciones.js';
+import './Models/relaciones.js';
 // Importar relaciones
 // import './Models/Proveedores/relacionesProveedor.js';
 
@@ -36,10 +37,7 @@ if (process.env.NODE_ENV !== 'production') {
 const app = express();
 
 /* 🔑 CORS configurado con whitelist y credenciales */
-const CORS_WHITELIST = [
-  'http://localhost:5173',
-  'http://127.0.0.1:5173'
-];
+const CORS_WHITELIST = ['http://localhost:5173', 'http://127.0.0.1:5173'];
 
 const corsOptions = {
   origin: function (origin, callback) {
@@ -83,7 +81,6 @@ const pool = mysql.createPool({
   database: 'DB_IfinityDESA_25092025'
 });
 
-
 // Ruta de login
 app.post('/login', login);
 
@@ -111,6 +108,31 @@ app.use(
     }
   })
 );
+
+async function deleteOldNotifications() {
+  try {
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+    const result = await NotificationModel.destroy({
+      where: {
+        created_at: {
+          [Op.lte]: oneWeekAgo
+        }
+      }
+    });
+
+    console.log(`${result} notificaciones eliminadas.`);
+  } catch (error) {
+    console.error('Error eliminando notificaciones:', error);
+  }
+}
+
+// Cron: ejecuta cada día a las 00:10
+cron.schedule('10 0 * * *', () => {
+  console.log('Cron job iniciado - eliminando notificaciones viejas...');
+  deleteOldNotifications();
+});
 
 if (!PORT) {
   console.error('El puerto no está definido en el archivo de configuración.');

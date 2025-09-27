@@ -110,7 +110,7 @@ export const OBR_Local_CTS = async (req, res) => {
   try {
     const local = await LocalesModel.findByPk(req.params.id);
     if (!local) {
-      return res.status(404).json({ mensajeError: 'Local no encontrado' });
+      return res.status(404).json({ mensajeError: 'Sede no encontrado' });
     }
     res.json(local);
   } catch (error) {
@@ -132,9 +132,9 @@ export const CR_Local_CTS = async (req, res) => {
 
     const descripcion = `creó un nuevo local "${nombre}" en "${direccion}"`;
 
-    await registrarLog(req, 'locales', 'crear', descripcion, usuario_log_id);
+    await registrarLog(req, 'sedes', 'crear', descripcion, usuario_log_id);
 
-    res.json({ message: 'Local creado correctamente', local: nuevo });
+    res.json({ message: 'Sede creado correctamente', local: nuevo });
   } catch (error) {
     res.status(500).json({ mensajeError: error.message });
   }
@@ -148,16 +148,16 @@ export const ER_Local_CTS = async (req, res) => {
     const local = await LocalesModel.findByPk(req.params.id);
 
     if (!local) {
-      return res.status(404).json({ mensajeError: 'Local no encontrado' });
+      return res.status(404).json({ mensajeError: 'Sede no encontrado' });
     }
 
     await LocalesModel.destroy({ where: { id: req.params.id } });
 
     const descripcion = `eliminó el local "${local.nombre}" ubicado en "${local.direccion}"`;
 
-    await registrarLog(req, 'locales', 'eliminar', descripcion, usuario_log_id);
+    await registrarLog(req, 'sedes', 'eliminar', descripcion, usuario_log_id);
 
-    res.json({ message: 'Local eliminado correctamente' });
+    res.json({ message: 'Sede eliminado correctamente' });
   } catch (error) {
     res.status(500).json({ mensajeError: error.message });
   }
@@ -171,7 +171,7 @@ export const UR_Local_CTS = async (req, res) => {
   try {
     const localAnterior = await LocalesModel.findByPk(id);
     if (!localAnterior) {
-      return res.status(404).json({ mensajeError: 'Local no encontrado' });
+      return res.status(404).json({ mensajeError: 'Sede no encontrado' });
     }
 
     const camposAuditar = [
@@ -217,11 +217,11 @@ export const UR_Local_CTS = async (req, res) => {
             )}`
           : `actualizó el local "${localAnterior.nombre}" sin cambios relevantes`;
 
-      await registrarLog(req, 'locales', 'editar', descripcion, usuario_log_id);
+      await registrarLog(req, 'sedes', 'editar', descripcion, usuario_log_id);
 
-      res.json({ message: 'Local actualizado correctamente', actualizado });
+      res.json({ message: 'Sede actualizado correctamente', actualizado });
     } else {
-      res.status(404).json({ mensajeError: 'Local no encontrado' });
+      res.status(404).json({ mensajeError: 'Sede no encontrado' });
     }
   } catch (error) {
     console.error('Error al actualizar local:', error);
