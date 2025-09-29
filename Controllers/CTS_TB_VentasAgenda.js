@@ -16,6 +16,8 @@ import NotificationModel from '../Models/MD_TB_Notifications.js'; // 🔔 notifi
 import { Op, fn, col, where as sqlWhere } from 'sequelize';
 import { UserModel } from '../Models/MD_TB_Users.js';
 
+const isAdmin = (rol) => (rol || '').toLowerCase() === 'admin';
+const qLevel = (level) => (level ?? '').toString().trim().toLowerCase();
 
 function ymd(d) {
   return d.toISOString().slice(0, 10);
@@ -104,62 +106,64 @@ export const GEN_AgendaSeguimientoVentas = async () => {
 // Tip: agregar ?with_prospect=1 para incluir datos del prospecto
 export const GET_AgendaHoy = async (req, res) => {
   try {
-    const { usuario_id, with_prospect } = req.query;
+    const { usuario_id, level, with_prospect, date } = req.query;
 
-    const byToday = sqlWhere(fn('DATE', col('followup_date')), fn('CURDATE'));
-    const where = { [Op.and]: [byToday] };
+    // Día: hoy por defecto, o el que pases por ?date=YYYY-MM-DD
+    const byDay = date
+      ? sqlWhere(fn('DATE', col('followup_date')), date)
+      : sqlWhere(fn('DATE', col('followup_date')), fn('CURDATE'));
 
+    const where = { [Op.and]: [byDay] };
     const include = [];
     const wantPros = with_prospect === '1';
 
-    // Si no es admin, necesitamos saber el local_id del usuario
-    let user = null;
-    if (usuario_id) {
-      user = await UserModel.findByPk(usuario_id, {
-        attributes: ['id', 'rol', 'local_id']
-      });
-    }
+    // Admin por override del front
+    const adminOverride = qLevel(level) === 'admin';
 
-    const isAdmin = user?.rol === 'admin';
-
-    if (isAdmin) {
-      // Admin: puede ver todo
+    if (adminOverride) {
       if (wantPros) {
         include.push({
           model: VentasProspectosModel,
           as: 'prospecto',
-          attributes: [
-            'nombre',
-            'contacto',
-            'actividad',
-            'local_id',
-            'asesor_nombre'
-          ]
+          attributes: ['nombre', 'contacto', 'actividad', 'asesor_nombre']
         });
       }
     } else {
-      // No admin (socio / vendedor): requiere usuario_id y filtra por local_id
+      // vendedor / socio → requiere usuario_id y filtra por local
       if (!usuario_id) {
         return res.status(400).json({ mensajeError: 'Debe enviar usuario_id' });
       }
+      const user = await UserModel.findByPk(usuario_id, {
+        attributes: ['id', 'rol', 'local_id']
+      });
       if (!user) {
         return res.status(404).json({ mensajeError: 'Usuario no encontrado' });
       }
-      if (!user.local_id) {
-        return res
-          .status(400)
-          .json({ mensajeError: 'El usuario no tiene local_id asignado' });
+      if (isAdmin(user.rol)) {
+        // si el usuario en DB es admin, también ve todo
+        if (wantPros) {
+          include.push({
+            model: VentasProspectosModel,
+            as: 'prospecto',
+            attributes: ['nombre', 'contacto', 'actividad', 'asesor_nombre']
+          });
+        }
+      } else {
+        if (!user.local_id) {
+          return res
+            .status(400)
+            .json({ mensajeError: 'El usuario no tiene local_id asignado' });
+        }
+        include.push({
+          model: VentasProspectosModel,
+          as: 'prospecto',
+          attributes: wantPros
+            ? ['nombre', 'contacto', 'actividad', 'local_id', 'asesor_nombre']
+            : [],
+          where: { local_id: user.local_id },
+          required: true
+        });
       }
-
-      include.push({
-        model: VentasProspectosModel,
-        as: 'prospecto',
-        attributes: wantPros
-          ? ['nombre', 'contacto', 'actividad', 'local_id', 'asesor_nombre']
-          : [],
-        where: { local_id: user.local_id },
-        required: true
-      });
     }
 
     const items = await VentasAgendaModel.findAll({
@@ -173,6 +177,7 @@ export const GET_AgendaHoy = async (req, res) => {
 
     res.json(items);
   } catch (e) {
+    console.error('GET_AgendaHoy error:', e);
     res.status(500).json({ mensajeError: e.message });
   }
 };
@@ -180,44 +185,49 @@ export const GET_AgendaHoy = async (req, res) => {
 // Contador para badge
 export const GET_AgendaHoyCount = async (req, res) => {
   try {
-    const { usuario_id } = req.query;
+    const { usuario_id, level, date } = req.query;
 
-    const byToday = sqlWhere(fn('DATE', col('followup_date')), fn('CURDATE'));
-    const where = { done: false, [Op.and]: [byToday] };
+    const byDay = date
+      ? sqlWhere(fn('DATE', col('followup_date')), date)
+      : sqlWhere(fn('DATE', col('followup_date')), fn('CURDATE'));
 
-    let user = null;
-    if (usuario_id) {
-      user = await UserModel.findByPk(usuario_id, {
-        attributes: ['id', 'rol', 'local_id']
-      });
-    }
-
-    const isAdmin = user?.rol === 'admin';
+    const where = { done: false, [Op.and]: [byDay] };
     const opts = { where };
 
-    if (!isAdmin) {
-      if (!usuario_id) {
-        return res.status(400).json({ mensajeError: 'Debe enviar usuario_id' });
+    const adminOverride = qLevel(level) === 'admin';
+
+    if (adminOverride || isAdmin(user?.rol)) {
+      if (wantPros) {
+        include.push({
+          model: VentasProspectosModel,
+          as: 'prospecto',
+          attributes: ['nombre', 'contacto', 'actividad', 'asesor_nombre'] // sin local_id
+        });
       }
-      if (!user) {
-        return res.status(404).json({ mensajeError: 'Usuario no encontrado' });
-      }
+    } else {
       if (!user.local_id) {
         return res
           .status(400)
           .json({ mensajeError: 'El usuario no tiene local_id asignado' });
       }
 
-      opts.include = [
-        {
+      // join al usuario dueño del seguimiento y filtrar por su local
+      include.push({
+        model: UserModel,
+        as: 'creador',
+        attributes: [], // no necesitamos campos del usuario en la respuesta
+        where: { local_id: user.local_id },
+        required: true
+      });
+
+      // opcional: sumar datos del prospecto para mostrar en UI
+      if (wantPros) {
+        include.push({
           model: VentasProspectosModel,
           as: 'prospecto',
-          attributes: [],
-          where: { local_id: user.local_id },
-          required: true
-        }
-      ];
-      opts.distinct = true; // por el join
+          attributes: ['nombre', 'contacto', 'actividad', 'asesor_nombre']
+        });
+      }
     }
 
     const count = await VentasAgendaModel.count(opts);
@@ -227,7 +237,6 @@ export const GET_AgendaHoyCount = async (req, res) => {
     res.status(500).json({ mensajeError: e.message });
   }
 };
-
 
 // Marcar seguimiento como realizado
 export const PATCH_AgendaDone = async (req, res) => {
