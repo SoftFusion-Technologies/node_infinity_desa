@@ -760,6 +760,42 @@ app.delete('/agendas-ventas/:id', async (req, res) => {
   }
 });
 
+// GET /prospectos-alertas
+app.get('/prospectos-alertas', async (req, res) => {
+  const { local_id } = req.query;
+  let where = 'WHERE fecha IS NOT NULL';
+  const params = [];
+
+  if (local_id) {
+    where += ' AND local_id = ?';
+    params.push(Number(local_id));
+  }
+
+  const [rows] = await pool.query(
+    `
+    SELECT
+      id,
+      nombre,
+      fecha,
+      n_contacto_2,
+      convertido,
+      DATEDIFF(CURDATE(), fecha) AS dias_desde_alta,
+      CASE
+        WHEN n_contacto_2 = 1 OR convertido = 1 THEN 'ninguno'
+        WHEN DATEDIFF(CURDATE(), fecha) = 7 THEN 'amarillo'
+        WHEN DATEDIFF(CURDATE(), fecha) > 7 THEN 'rojo'
+        ELSE 'ninguno'
+      END AS color_2do_contacto
+    FROM ventas_prospectos
+    ${where}
+    ORDER BY fecha ASC
+    `,
+    params
+  );
+
+  res.json(rows);
+});
+
 
 if (!PORT) {
   console.error('El puerto no está definido en el archivo de configuración.');

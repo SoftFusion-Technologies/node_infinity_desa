@@ -162,4 +162,47 @@ router.post(
   /* requireAuth, */ POST_GenerarAgendaHoy
 );
 
+import {
+  OBR_Recaptacion_CTS,
+  OBRS_Recaptacion_CTS,
+  CNT_RecaptacionPendientes_CTS,
+  CR_Recaptacion_CTS,
+  ER_Recaptacion_CTS,
+  UR_Recaptacion_CTS,
+  OBRS_ColaboradoresConRecaptacion,
+  ER_RecaptacionMasiva_CTS,
+  ER_RecaptacionMasivaPorUsuario_CTS
+} from '../Controllers/CTS_TB_Recaptacion.js';
+
+
+// Obtener todos los registros (puede filtrar por usuario o ser admin/coordinador)
+router.get('/recaptacion', OBRS_Recaptacion_CTS);
+router.get('/recaptacion/pendientes/count', CNT_RecaptacionPendientes_CTS);
+
+// Obtener un registro específico
+router.get('/recaptacion/:id', OBR_Recaptacion_CTS);
+
+// Crear uno o varios registros nuevos
+router.post('/recaptacion', CR_Recaptacion_CTS);
+
+// Eliminar un registro
+router.delete('/recaptacion/:id', ER_Recaptacion_CTS);
+
+// Actualizar un registro
+router.put('/recaptacion/:id', UR_Recaptacion_CTS);
+
+router.get('/usuarios-con-registros', OBRS_ColaboradoresConRecaptacion);
+
+router.delete('/recaptacion-masivo', ER_RecaptacionMasiva_CTS);
+
+// Ejemplo: DELETE /recaptacion-masiva-usuario?usuario_id=10
+router.delete(
+  '/recaptacion-masiva-usuario',
+  ER_RecaptacionMasivaPorUsuario_CTS
+);
+
+import RT_Import_Recaptacion from '../Controllers/RT_Import_Recaptacion.js';
+router.use('/recaptacionImport', RT_Import_Recaptacion);
+
+
 export default router;
