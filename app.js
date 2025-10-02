@@ -15,6 +15,7 @@ import mysql from 'mysql2/promise'; // Usar mysql2 para las promesas
 import cron from 'node-cron';
 import path from 'node:path';
 import NotificationModel from './Models/MD_TB_Notifications.js';
+import { Op } from 'sequelize';
 
 const BASE_UPLOAD_DIR = path.join(process.cwd(), 'uploads');
 
@@ -366,7 +367,6 @@ cron.schedule('10 0 * * *', () => {
   console.log('Cron job iniciado - eliminando notificaciones viejas...');
   deleteOldNotifications();
 });
-
 
 app.get('/stats-ventas', async (req, res) => {
   try {
