@@ -221,4 +221,44 @@ router.put('/catalogo-ejercicios/:id', UR_EjercicioCatalogo_CTS);
 router.delete('/catalogo-ejercicios/:id', ER_EjercicioCatalogo_CTS);
 router.get('/catalogo-ejercicios/search', SEARCH_EjerciciosCatalogo_CTS);
 
+import {
+  OBR_Students_CTS,
+  OBRS_Students_CTS,
+  CR_Students_CTS,
+  ER_Students_CTS,
+  UR_Students_CTS
+} from '../Controllers/CTS_TB_Students.js';
+
+// ----------------------------------------------------------------
+
+// ----------------------------------------------------------------
+// Obtener todos los estudiantes (opcionalmente filtrar por user_id)
+router.get('/students', OBRS_Students_CTS);
+
+// Obtener un estudiante por ID
+router.get('/students/:id', OBR_Students_CTS);
+
+// Crear un nuevo estudiante
+router.post('/students', CR_Students_CTS);
+
+// Eliminar un estudiante por ID
+router.delete('/students/:id', ER_Students_CTS);
+
+// Actualizar un estudiante por ID
+router.put('/students/:id', UR_Students_CTS);
+
+
+import {
+  OBRS_RutinaColores_CTS,
+  OBR_RutinaColor_CTS,
+  CR_RutinaColor_CTS,
+  UR_RutinaColor_CTS,
+  ER_RutinaColor_CTS
+} from '../Controllers/CTS_TB_RutinaColores.js';
+router.get('/rutina-colores', OBRS_RutinaColores_CTS);
+router.get('/rutina-colores/:id', OBR_RutinaColor_CTS);
+router.post('/rutina-colores', CR_RutinaColor_CTS);
+router.put('/rutina-colores/:id', UR_RutinaColor_CTS);
+router.delete('/rutina-colores/:id', ER_RutinaColor_CTS);
+
 export default router;

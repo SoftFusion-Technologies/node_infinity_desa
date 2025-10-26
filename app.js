@@ -9,7 +9,7 @@ import db from './DataBase/db.js';
 import GetRoutes from './Routes/routes.js';
 import dotenv from 'dotenv';
 
-import { login, authenticateToken } from './Security/auth.js'; // Importa las funciones del archivo auth.js
+import { login, authenticateToken, loginAlumno } from './Security/auth.js'; // Importa las funciones del archivo auth.js
 import { PORT } from './DataBase/config.js';
 import mysql from 'mysql2/promise'; // Usar mysql2 para las promesas
 import cron from 'node-cron';
@@ -89,6 +89,9 @@ app.post('/login', login);
 app.get('/protected', authenticateToken, (req, res) => {
   res.json({ message: 'Esto es una ruta protegida' });
 });
+
+// 🔐 Ruta de login para alumnos
+app.post('/loginAlumno', loginAlumno);
 
 app.get('/', (req, res) => {
   if (req.url == '/') {

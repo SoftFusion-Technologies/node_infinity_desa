@@ -47,7 +47,7 @@ export const UserModel = db.define(
       allowNull: false
     },
     rol: {
-      type: DataTypes.ENUM('admin', 'socio', 'vendedor'),
+      type: DataTypes.ENUM('admin', 'socio', 'vendedor','instructor '),
       allowNull: false
     },
     local_id: {
