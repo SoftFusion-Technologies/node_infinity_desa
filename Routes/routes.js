@@ -205,4 +205,20 @@ import RT_Import_Recaptacion from '../Controllers/RT_Import_Recaptacion.js';
 router.use('/recaptacionImport', RT_Import_Recaptacion);
 
 
+import {
+  OBRS_EjerciciosCatalogo_CTS,
+  OBR_EjercicioCatalogo_CTS,
+  CR_EjercicioCatalogo_CTS,
+  ER_EjercicioCatalogo_CTS,
+  UR_EjercicioCatalogo_CTS,
+  SEARCH_EjerciciosCatalogo_CTS
+} from '../Controllers/Rutinas_V2/CTS_TB_EjerciciosCatalogo.js';
+
+router.get('/catalogo-ejercicios', OBRS_EjerciciosCatalogo_CTS);
+router.get('/catalogo-ejercicios/:id', OBR_EjercicioCatalogo_CTS);
+router.post('/catalogo-ejercicios', CR_EjercicioCatalogo_CTS);
+router.put('/catalogo-ejercicios/:id', UR_EjercicioCatalogo_CTS);
+router.delete('/catalogo-ejercicios/:id', ER_EjercicioCatalogo_CTS);
+router.get('/catalogo-ejercicios/search', SEARCH_EjerciciosCatalogo_CTS);
+
 export default router;
