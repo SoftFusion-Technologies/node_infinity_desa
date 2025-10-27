@@ -5,7 +5,7 @@ import BloquesModel from '../../Models/Rutinas_V2/MD_TB_Bloques.js';
 import EjerciciosModel from '../../Models/Rutinas_V2/MD_TB_Ejercicios.js';
 import SeriesModel from '../../Models/Rutinas_V2/MD_TB_Series.js';
 import StudentsModel from '../../Models/MD_TB_Students.js';
-import UsersModel from '../../Models/MD_TB_Users.js';
+import { UserModel } from '../../Models/MD_TB_Users.js';
 
 export const OBR_RutinasFullList_CTS = async (req, res) => {
   try {
@@ -71,9 +71,9 @@ export const OBR_RutinasFullList_CTS = async (req, res) => {
 
     // Includes
     const includeInstructor = {
-      model: UsersModel,
+      model: UserModel,
       as: 'instructor',
-      attributes: ['id', 'name', 'email'],
+      attributes: ['id', 'nombre', 'email'],
       required: false
     };
 

@@ -19,6 +19,7 @@ import { Op } from 'sequelize';
 
 const BASE_UPLOAD_DIR = path.join(process.cwd(), 'uploads');
 
+import './Models/associations.js';
 import './Models/relaciones.js';
 import './Models/Rutinas_V2/relaciones.js';
 
@@ -812,11 +813,11 @@ app.get('/estadisticas/alumnos-por-profesor', async (req, res) => {
     const [result] = await pool.query(
       `SELECT 
          u.id AS profesor_id,
-         u.name AS profesor_nombre,
+         u.nombre AS profesor_nombre,
          COUNT(s.id) AS total_alumnos
        FROM students s
-       INNER JOIN users u ON s.user_id = u.id
-       GROUP BY u.id, u.name
+       INNER JOIN usuarios u ON s.user_id = u.id
+       GROUP BY u.id, u.nombre
        ORDER BY total_alumnos DESC`
     );
 
@@ -835,13 +836,13 @@ app.get('/estadisticas/rutinas-por-profesor', async (req, res) => {
     const [result] = await pool.query(
       `SELECT 
          u.id AS profesor_id,
-         u.name AS profesor_nombre,
+         u.nombre AS profesor_nombre,
          COUNT(r.id) AS total_rutinas
        FROM routines r
        INNER JOIN students s ON r.student_id = s.id
-       INNER JOIN users u ON s.user_id = u.id
+       INNER JOIN usuarios u ON s.user_id = u.id
        WHERE r.mes = ? AND r.anio = ?
-       GROUP BY u.id, u.name
+       GROUP BY u.id, u.nombre
        ORDER BY total_rutinas DESC`,
       [mes, anio]
     );
@@ -858,11 +859,11 @@ app.get('/estadisticas/ayudas-por-profesor', async (req, res) => {
     const query = `
       SELECT
         u.id AS profesor_id,
-        u.name AS profesor_nombre,
+        u.nombre AS profesor_nombre,
         COUNT(r.id) AS total_ayudas
       FROM routine_request_stats r
-      INNER JOIN users u ON r.instructor_id = u.id
-      GROUP BY u.id, u.name
+      INNER JOIN usuarios u ON r.instructor_id = u.id
+      GROUP BY u.id, u.nombre
       ORDER BY total_ayudas DESC
     `;
 
@@ -887,13 +888,13 @@ app.get('/estadisticas/feedbacks-por-profesor', async (req, res) => {
     const query = `
       SELECT 
         u.id AS profesor_id,
-        u.name AS profesor_nombre,
+        u.nombre AS profesor_nombre,
         COUNT(rf.id) AS total_feedbacks
       FROM routine_feedback rf
       JOIN students s ON rf.student_id = s.id
-      JOIN users u ON s.user_id = u.id
+      JOIN usuarios u ON s.user_id = u.id
       WHERE MONTH(rf.created_at) = ? AND YEAR(rf.created_at) = ?
-      GROUP BY u.id, u.name
+      GROUP BY u.id, u.nombre
       ORDER BY total_feedbacks DESC
     `;
 
@@ -998,12 +999,12 @@ app.get('/routine-feedbacks', async (req, res) => {
         r.fecha AS rutina_fecha,
         s.nomyape AS alumno,
         s.id AS student_id,
-        u.name AS instructor,
+        u.nombre AS instructor,
         u.id AS instructor_id
       FROM routine_feedback rf
       JOIN routines r ON rf.routine_id = r.id
       JOIN students s ON rf.student_id = s.id
-      JOIN users u ON s.user_id = u.id
+      JOIN usuarios u ON s.user_id = u.id
       WHERE u.id = ? AND s.id = ?
       ORDER BY r.fecha DESC, s.nomyape
     `;
